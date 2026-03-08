@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-import shutil
+import os
 import subprocess
 import sys
 import tempfile
@@ -18,7 +18,16 @@ def skill_scripts() -> Path:
 
 
 def run(command: list[str], cwd: Path, expect_ok: bool = True) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False)
+    env = dict(os.environ)
+    env["AGENT_ENGINEER_ALLOW_MISSING_CLI"] = "1"
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
     if expect_ok and result.returncode != 0:
         raise RuntimeError(result.stderr or result.stdout or f"Failed: {' '.join(command)}")
     return result

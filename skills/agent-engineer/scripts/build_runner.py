@@ -44,6 +44,10 @@ def cli_status() -> dict[str, str | None]:
     return {name: shutil.which(name) for name in ("codex", "claude", "opencode")}
 
 
+def allow_missing_cli() -> bool:
+    return os.getenv("AGENT_ENGINEER_ALLOW_MISSING_CLI") == "1"
+
+
 def topological_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     by_id = {step["id"]: step for step in steps}
     if len(by_id) != len(steps):
@@ -92,6 +96,7 @@ def validate_architecture(architecture: dict[str, Any], require_approved: bool =
         raise ValueError("Architecture must define at least one engine")
     engine_ids = set()
     installed = cli_status()
+    skip_cli_check = allow_missing_cli()
     for engine in engines:
         for key in ("id", "cli", "model", "purpose"):
             if not engine.get(key):
@@ -101,7 +106,7 @@ def validate_architecture(architecture: dict[str, Any], require_approved: bool =
         engine_ids.add(engine["id"])
         if engine["cli"] not in installed:
             raise ValueError(f"Unsupported CLI: {engine['cli']}")
-        if installed[engine["cli"]] is None:
+        if installed[engine["cli"]] is None and not skip_cli_check:
             raise ValueError(f"Selected CLI is not installed: {engine['cli']}")
     ordered = topological_steps(architecture["steps"])
     for step in ordered:

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Engineer"
+  short_description: "승인 게이트형 에이전트 아키텍처 오케스트레이션"
+  default_prompt: "Use $agent-engineer to design an approval-gated agent architecture, render the proposal, and execute only after explicit approval."

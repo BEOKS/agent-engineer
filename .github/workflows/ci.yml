@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate repository layout
+        run: python3 scripts/validate_repo.py
+
+      - name: Compile Python scripts
+        run: |
+          python3 -m py_compile scripts/*.py
+          python3 -m py_compile skills/agent-engineer/scripts/*.py
+
+      - name: Run orchestration smoke test
+        run: python3 scripts/smoke_test.py
+
+      - name: Check local skill discovery
+        run: npx --yes skills add . --list
+
+      - name: Check local skill installation
+        run: |
+          test_dir="$(mktemp -d)"
+          cd "$test_dir"
+          HOME="$test_dir/home" npx --yes skills add "$GITHUB_WORKSPACE" --skill agent-engineer --agent claude-code --yes --copy
+          test -f "$test_dir/.claude/skills/agent-engineer/SKILL.md"
+          test -f "$test_dir/skills-lock.json"
+
+  verify-remote-install:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check remote GitHub installation
+        run: |
+          test_dir="$(mktemp -d)"
+          cd "$test_dir"
+          HOME="$test_dir/home" npx --yes skills add "https://github.com/${{ github.repository }}.git" --skill agent-engineer --agent claude-code --yes --copy
+          test -f "$test_dir/.claude/skills/agent-engineer/SKILL.md"
+          test -f "$test_dir/skills-lock.json"
